@@ -1,0 +1,78 @@
+{
+  "" : {
+    "diagnostics" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTracker-master.dia",
+    "emit-module-dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTracker-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTracker-master-emit-module.dia",
+    "swift-dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTracker-master.swiftdeps"
+  },
+  "/Users/dong.chen1/Documents/RacquetVision/Demo/TennisTracker/BallDetector.swift" : {
+    "const-values" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/BallDetector.swiftconstvalues",
+    "dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/BallDetector.d",
+    "diagnostics" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/BallDetector.dia",
+    "index-unit-output-path" : "/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/BallDetector.o",
+    "llvm-bc" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/BallDetector.bc",
+    "object" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/BallDetector.o",
+    "swift-dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/BallDetector.swiftdeps",
+    "swiftmodule" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/BallDetector~partial.swiftmodule"
+  },
+  "/Users/dong.chen1/Documents/RacquetVision/Demo/TennisTracker/CameraManager.swift" : {
+    "const-values" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraManager.swiftconstvalues",
+    "dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraManager.d",
+    "diagnostics" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraManager.dia",
+    "index-unit-output-path" : "/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraManager.o",
+    "llvm-bc" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraManager.bc",
+    "object" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraManager.o",
+    "swift-dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraManager.swiftdeps",
+    "swiftmodule" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraManager~partial.swiftmodule"
+  },
+  "/Users/dong.chen1/Documents/RacquetVision/Demo/TennisTracker/CameraPreviewView.swift" : {
+    "const-values" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraPreviewView.swiftconstvalues",
+    "dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraPreviewView.d",
+    "diagnostics" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraPreviewView.dia",
+    "index-unit-output-path" : "/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraPreviewView.o",
+    "llvm-bc" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraPreviewView.bc",
+    "object" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraPreviewView.o",
+    "swift-dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraPreviewView.swiftdeps",
+    "swiftmodule" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/CameraPreviewView~partial.swiftmodule"
+  },
+  "/Users/dong.chen1/Documents/RacquetVision/Demo/TennisTracker/ContentView.swift" : {
+    "const-values" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/ContentView.d",
+    "diagnostics" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/ContentView.dia",
+    "index-unit-output-path" : "/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/ContentView.o",
+    "swift-dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/ContentView~partial.swiftmodule"
+  },
+  "/Users/dong.chen1/Documents/RacquetVision/Demo/TennisTracker/TennisTrackerApp.swift" : {
+    "const-values" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTrackerApp.swiftconstvalues",
+    "dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTrackerApp.d",
+    "diagnostics" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTrackerApp.dia",
+    "index-unit-output-path" : "/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTrackerApp.o",
+    "llvm-bc" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTrackerApp.bc",
+    "object" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTrackerApp.o",
+    "swift-dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTrackerApp.swiftdeps",
+    "swiftmodule" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TennisTrackerApp~partial.swiftmodule"
+  },
+  "/Users/dong.chen1/Documents/RacquetVision/Demo/TennisTracker/TrajectoryOverlayView.swift" : {
+    "const-values" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryOverlayView.swiftconstvalues",
+    "dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryOverlayView.d",
+    "diagnostics" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryOverlayView.dia",
+    "index-unit-output-path" : "/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryOverlayView.o",
+    "llvm-bc" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryOverlayView.bc",
+    "object" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryOverlayView.o",
+    "swift-dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryOverlayView.swiftdeps",
+    "swiftmodule" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryOverlayView~partial.swiftmodule"
+  },
+  "/Users/dong.chen1/Documents/RacquetVision/Demo/TennisTracker/TrajectoryTracker.swift" : {
+    "const-values" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryTracker.swiftconstvalues",
+    "dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryTracker.d",
+    "diagnostics" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryTracker.dia",
+    "index-unit-output-path" : "/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryTracker.o",
+    "llvm-bc" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryTracker.bc",
+    "object" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryTracker.o",
+    "swift-dependencies" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryTracker.swiftdeps",
+    "swiftmodule" : "/Users/dong.chen1/Documents/RacquetVision/Demo/build/TennisTracker.build/Debug-iphoneos/TennisTracker.build/Objects-normal/arm64/TrajectoryTracker~partial.swiftmodule"
+  }
+}
