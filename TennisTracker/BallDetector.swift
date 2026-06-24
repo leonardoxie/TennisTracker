@@ -1,41 +1,13 @@
+import Foundation
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import UIKit
 import Vision
 
-/// Detects tennis ball in video frames using color filtering + contour detection
+/// Detects tennis ball using Core ML model (primary) or color-based detection (fallback)
 class BallDetector {
     
-    // Tennis ball HSV color range (bright yellow-green)
-    // These values work for standard tennis balls under indoor lighting
-    struct ColorRange {
-        var minHue: Double        // 0.15 ≈ yellow-green
-        var maxHue: Double        // 0.40 ≈ green
-        var minSaturation: Double // 0.30 minimum saturation
-        var maxSaturation: Double // 1.00
-        var minBrightness: Double // 0.40 minimum brightness
-        var maxBrightness: Double // 1.00
-        
-        static let `default` = ColorRange(
-            minHue: 0.13, maxHue: 0.38,
-            minSaturation: 0.25, maxSaturation: 1.0,
-            minBrightness: 0.35, maxBrightness: 1.0
-        )
-        
-        // Indoor lighting (warmer, less green)
-        static let indoor = ColorRange(
-            minHue: 0.10, maxHue: 0.42,
-            minSaturation: 0.20, maxSaturation: 1.0,
-            minBrightness: 0.30, maxBrightness: 1.0
-        )
-        
-        // Outdoor (brighter, more contrast)
-        static let outdoor = ColorRange(
-            minHue: 0.15, maxHue: 0.35,
-            minSaturation: 0.35, maxSaturation: 1.0,
-            minBrightness: 0.45, maxBrightness: 1.0
-        )
-    }
+    // MARK: - Types
     
     struct Detection {
         let center: CGPoint      // Normalized coordinates (0-1)
@@ -43,199 +15,274 @@ class BallDetector {
         let confidence: Float    // Detection confidence 0-1
         let boundingBox: CGRect  // Normalized bounding box
         let timestamp: TimeInterval
+        let classId: Int         // 0=Player, 1=Racket, 2=Tennis Ball
+        let className: String
     }
     
-    var colorRange: ColorRange = .default
-    var minBallRadius: CGFloat = 0.005  // Minimum radius as fraction of frame
-    var maxBallRadius: CGFloat = 0.08   // Maximum radius as fraction of frame
+    // MARK: - Config
     
-    private let ciContext = CIContext()
+    var confidenceThreshold: Float = 0.35
+    var nmsThreshold: Float = 0.45
+    var detectAllClasses: Bool = false  // true = detect all, false = ball only
+    
+    // MARK: - Detection Mode
+    
+    enum DetectionMode {
+        case coreML     // Uses YOLOv8 Core ML model (best quality)
+        case colorBased // Uses HSV color filtering (fallback)
+    }
+    
+    private(set) var mode: DetectionMode = .colorBased
+    private var vnModel: VNCoreMLModel?
+    private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+    
+    // MARK: - Color-based detection config
+    
+    struct ColorRange {
+        var minHue: Double, maxHue: Double
+        var minSaturation: Double, maxSaturation: Double
+        var minBrightness: Double, maxBrightness: Double
+        
+        static let `default` = ColorRange(minHue: 0.13, maxHue: 0.38, minSaturation: 0.25, maxSaturation: 1.0, minBrightness: 0.35, maxBrightness: 1.0)
+        static let indoor = ColorRange(minHue: 0.10, maxHue: 0.42, minSaturation: 0.20, maxSaturation: 1.0, minBrightness: 0.30, maxBrightness: 1.0)
+        static let outdoor = ColorRange(minHue: 0.15, maxHue: 0.35, minSaturation: 0.35, maxSaturation: 1.0, minBrightness: 0.45, maxBrightness: 1.0)
+    }
+    var colorRange: ColorRange = .default
+    
+    // MARK: - Init
+    
+    init() {
+        loadCoreMLModel()
+    }
+    
+    private func loadCoreMLModel() {
+        // Try to load YOLOv8 Core ML model from bundle
+        if let modelURL = Bundle.main.url(forResource: "YOLOv8", withExtension: "mlmodelc") {
+            loadModel(from: modelURL)
+        } else if let modelURL = Bundle.main.url(forResource: "TennisDetector", withExtension: "mlmodelc") {
+            loadModel(from: modelURL)
+        } else if let modelURL = Bundle.main.url(forResource: "YOLOv8", withExtension: "mlmodel") {
+            loadModel(from: modelURL)
+        } else if let modelURL = Bundle.main.url(forResource: "TennisDetector", withExtension: "mlmodel") {
+            loadModel(from: modelURL)
+        } else {
+            print("⚠️ No Core ML model found, using color-based detection")
+            mode = .colorBased
+        }
+    }
+    
+    private func loadModel(from url: URL) {
+        do {
+            let config = MLModelConfiguration()
+            config.computeUnits = .all  // Use Neural Engine if available
+            let mlModel = try MLModel(contentsOf: url, configuration: config)
+            vnModel = try VNCoreMLModel(for: mlModel)
+            mode = .coreML
+            print("✅ Core ML model loaded: \(url.lastPathComponent)")
+        } catch {
+            print("❌ Failed to load Core ML model: \(error)")
+            mode = .colorBased
+        }
+    }
     
     // MARK: - Public API
     
-    /// Detect tennis ball in a pixel buffer
-    func detect(in pixelBuffer: CVPixelBuffer, timestamp: TimeInterval) -> Detection? {
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        
-        // Step 1: Color filter to isolate yellow-green
-        guard let filtered = applyColorFilter(to: ciImage) else { return nil }
-        
-        // Step 2: Find contours/blobs
-        guard let detection = findBall(in: filtered, originalSize: ciImage.extent.size, timestamp: timestamp) else {
-            return nil
+    func detect(in pixelBuffer: CVPixelBuffer, timestamp: TimeInterval) -> [Detection] {
+        switch mode {
+        case .coreML:
+            return detectWithCoreML(in: pixelBuffer, timestamp: timestamp)
+        case .colorBased:
+            return detectWithColor(in: pixelBuffer, timestamp: timestamp)
         }
-        
-        return detection
     }
     
-    // MARK: - Color Filtering
+    // MARK: - Core ML Detection
+    
+    private func detectWithCoreML(in pixelBuffer: CVPixelBuffer, timestamp: TimeInterval) -> [Detection] {
+        guard let vnModel = vnModel else { return [] }
+        
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let imageWidth = ciImage.extent.width
+        let imageHeight = ciImage.extent.height
+        
+        let request = VNCoreMLRequest(model: vnModel)
+        request.imageCropAndScaleOption = .scaleFill
+        
+        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
+        
+        do {
+            try handler.perform([request])
+        } catch {
+            print("Vision request error: \(error)")
+            return []
+        }
+        
+        guard let results = request.results as? [VNRecognizedObjectObservation] else {
+            return []
+        }
+        
+        var detections: [Detection] = []
+        
+        for obs in results {
+            guard let topLabel = obs.labels.first else { continue }
+            
+            let classId = classIdFromLabel(topLabel.identifier)
+            
+            // Filter by target class if not detecting all
+            if !detectAllClasses && classId != 2 { continue } // 2 = Tennis Ball
+            
+            let confidence = topLabel.confidence
+            guard confidence >= confidenceThreshold else { continue }
+            
+            // VNRecognizedObjectObservation.bbox is normalized [0,1], origin = bottom-left
+            let bbox = obs.boundingBox
+            let centerX = bbox.origin.x + bbox.width / 2
+            let centerY = bbox.origin.y + bbox.height / 2
+            let radius = max(bbox.width, bbox.height) / 2
+            
+            detections.append(Detection(
+                center: CGPoint(x: centerX, y: centerY),
+                radius: radius,
+                confidence: confidence,
+                boundingBox: CGRect(
+                    x: bbox.origin.x,
+                    y: bbox.origin.y,
+                    width: bbox.width,
+                    height: bbox.height
+                ),
+                timestamp: timestamp,
+                classId: classId,
+                className: classNameForId(classId)
+            ))
+        }
+        
+        // NMS
+        return applyNMS(detections)
+    }
+    
+    private func classIdFromLabel(_ label: String) -> Int {
+        let lower = label.lowercased()
+        if lower.contains("ball") || lower.contains("tennis") { return 2 }
+        if lower.contains("racket") || lower.contains("racquet") { return 1 }
+        if lower.contains("player") || lower.contains("person") { return 0 }
+        // COCO class mapping: sports ball = 32 → map to our class 2
+        if lower.contains("sports") { return 2 }
+        return 0
+    }
+    
+    private func classNameForId(_ id: Int) -> String {
+        switch id {
+        case 0: return "Player"
+        case 1: return "Racket"
+        case 2: return "Tennis Ball"
+        default: return "Unknown"
+        }
+    }
+    
+    // MARK: - Color-based Detection (Fallback)
+    
+    private func detectWithColor(in pixelBuffer: CVPixelBuffer, timestamp: TimeInterval) -> [Detection] {
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        
+        guard let filtered = applyColorFilter(to: ciImage) else { return [] }
+        guard let detection = findBall(in: filtered, originalSize: ciImage.extent.size, timestamp: timestamp) else {
+            return []
+        }
+        
+        return [detection]
+    }
     
     private func applyColorFilter(to image: CIImage) -> CIImage? {
-        // Convert to HSV-like filtering using CIColorMatrix + threshold
-        // CIKernel approach for better performance
-        
-        // Step 1: Apply slight blur to reduce noise
         let blur = CIFilter.gaussianBlur()
         blur.inputImage = image
         blur.radius = 2
-        
         guard let blurred = blur.outputImage else { return nil }
         
-        // Step 2: Color threshold using custom kernel
-        // This filters for yellow-green colors (tennis ball)
         let kernel = CIColorKernel(source: """
             kernel vec4 colorThreshold(__sample image, float minH, float maxH, float minS, float maxS, float minB, float maxB) {
-                float r = image.r;
-                float g = image.g;
-                float b = image.b;
-                
-                // RGB to HSV
-                float maxC = max(r, max(g, b));
-                float minC = min(r, min(g, b));
-                float delta = maxC - minC;
-                
-                float h = 0.0;
-                float s = maxC > 0.0 ? delta / maxC : 0.0;
-                float v = maxC;
-                
+                float r = image.r, g = image.g, b = image.b;
+                float maxC = max(r, max(g, b)), minC = min(r, min(g, b)), delta = maxC - minC;
+                float h = 0.0, s = maxC > 0.0 ? delta / maxC : 0.0, v = maxC;
                 if (delta > 0.0) {
-                    if (maxC == r) {
-                        h = 60.0 * mod((g - b) / delta, 6.0);
-                    } else if (maxC == g) {
-                        h = 60.0 * ((b - r) / delta + 2.0);
-                    } else {
-                        h = 60.0 * ((r - g) / delta + 4.0);
-                    }
+                    if (maxC == r) h = 60.0 * mod((g - b) / delta, 6.0);
+                    else if (maxC == g) h = 60.0 * ((b - r) / delta + 2.0);
+                    else h = 60.0 * ((r - g) / delta + 4.0);
                     if (h < 0.0) h += 360.0;
                 }
-                
-                // Normalize H to 0-1
                 h = h / 360.0;
-                
-                // Check if color is in range
                 if (h >= minH && h <= maxH && s >= minS && s <= maxS && v >= minB && v <= maxB) {
-                    return vec4(1.0, 1.0, 1.0, 1.0); // White = ball pixel
+                    return vec4(1.0, 1.0, 1.0, 1.0);
                 } else {
-                    return vec4(0.0, 0.0, 0.0, 1.0); // Black = not ball
+                    return vec4(0.0, 0.0, 0.0, 1.0);
                 }
             }
             """)
-        
         guard let colorKernel = kernel else { return nil }
-        
-        let filtered = colorKernel.apply(
-            extent: image.extent,
-            arguments: [
-                blurred,
-                colorRange.minHue,
-                colorRange.maxHue,
-                colorRange.minSaturation,
-                colorRange.maxSaturation,
-                colorRange.minBrightness,
-                colorRange.maxBrightness
-            ]
-        )
-        
-        return filtered
+        return colorKernel.apply(extent: image.extent, arguments: [blurred, colorRange.minHue, colorRange.maxHue, colorRange.minSaturation, colorRange.maxSaturation, colorRange.minBrightness, colorRange.maxBrightness])
     }
     
-    // MARK: - Ball Detection (Contour Analysis)
-    
     private func findBall(in filteredImage: CIImage, originalSize: CGSize, timestamp: TimeInterval) -> Detection? {
-        // Render filtered image to a bitmap for analysis
-        guard let cgImage = ciContext.createCGImage(filteredImage, from: filteredImage.extent) else {
-            return nil
-        }
-        
-        // Analyze the binary image to find the ball
-        // We look for a cluster of white pixels that forms a roughly circular shape
-        
-        let width = cgImage.width
-        let height = cgImage.height
-        let bytesPerRow = cgImage.bytesPerRow
-        let bitsPerPixel = cgImage.bitsPerPixel
-        
-        guard let dataProvider = cgImage.dataProvider,
-              let data = dataProvider.data else { return nil }
-        
+        guard let cgImage = ciContext.createCGImage(filteredImage, from: filteredImage.extent) else { return nil }
+        let width = cgImage.width, height = cgImage.height
+        let bytesPerRow = cgImage.bytesPerRow, bitsPerPixel = cgImage.bitsPerPixel
+        guard let dataProvider = cgImage.dataProvider, let data = dataProvider.data else { return nil }
         let buffer = CFDataGetBytePtr(data)!
         let bytesPerPixel = bitsPerPixel / 8
         
-        // Accumulate white pixel positions
-        var sumX: CGFloat = 0
-        var sumY: CGFloat = 0
-        var count: Int = 0
+        var sumX: CGFloat = 0, sumY: CGFloat = 0, count: Int = 0
         var minX = width, maxX = 0, minY = height, maxY = 0
-        
-        // Sample every 2nd pixel for speed
         let step = 2
+        
         for y in stride(from: 0, to: height, by: step) {
             for x in stride(from: 0, to: width, by: step) {
                 let offset = y * bytesPerRow + x * bytesPerPixel
-                let r = buffer[offset]
-                let g = buffer[offset + 1]
-                let b = buffer[offset + 2]
-                
-                // Check if pixel is white (ball) — threshold for brightness
-                let brightness = (Int(r) + Int(g) + Int(b)) / 3
+                let brightness = (Int(buffer[offset]) + Int(buffer[offset + 1]) + Int(buffer[offset + 2])) / 3
                 if brightness > 200 {
-                    sumX += CGFloat(x)
-                    sumY += CGFloat(y)
-                    count += 1
-                    if x < minX { minX = x }
-                    if x > maxX { maxX = x }
-                    if y < minY { minY = y }
-                    if y > maxY { maxY = y }
+                    sumX += CGFloat(x); sumY += CGFloat(y); count += 1
+                    if x < minX { minX = x }; if x > maxX { maxX = x }
+                    if y < minY { minY = y }; if y > maxY { maxY = y }
                 }
             }
         }
         
-        // Need minimum number of pixels to be a ball
-        let minPixels = 30
-        guard count >= minPixels else { return nil }
+        guard count >= 30 else { return nil }
+        let centerX = sumX / CGFloat(count), centerY = sumY / CGFloat(count)
+        let bboxW = CGFloat(maxX - minX), bboxH = CGFloat(maxY - minY)
+        let radius = max(bboxW, bboxH) / 2
+        let normCenter = CGPoint(x: centerX / CGFloat(width), y: 1.0 - centerY / CGFloat(height))
+        let normRadius = radius / CGFloat(width)
+        guard normRadius >= 0.005 && normRadius <= 0.08 else { return nil }
         
-        // Calculate center of mass
-        let centerX = sumX / CGFloat(count)
-        let centerY = sumY / CGFloat(count)
+        let bbox = CGRect(x: CGFloat(minX) / CGFloat(width), y: 1.0 - CGFloat(maxY) / CGFloat(height), width: bboxW / CGFloat(width), height: bboxH / CGFloat(height))
         
-        // Calculate approximate radius from bounding box
-        let bboxWidth = CGFloat(maxX - minX)
-        let bboxHeight = CGFloat(maxY - minY)
-        let radius = max(bboxWidth, bboxHeight) / 2
+        return Detection(center: normCenter, radius: normRadius, confidence: 0.7, boundingBox: bbox, timestamp: timestamp, classId: 2, className: "Tennis Ball")
+    }
+    
+    // MARK: - NMS
+    
+    private func applyNMS(_ detections: [Detection]) -> [Detection] {
+        let sorted = detections.sorted { $0.confidence > $1.confidence }
+        var kept: [Detection] = []
+        var suppressed = Set<Int>()
         
-        // Normalize coordinates
-        let normalizedCenter = CGPoint(
-            x: centerX / CGFloat(width),
-            y: 1.0 - centerY / CGFloat(height) // Flip Y for SwiftUI coordinates
-        )
-        let normalizedRadius = radius / CGFloat(width)
-        
-        // Size sanity check
-        guard normalizedRadius >= minBallRadius && normalizedRadius <= maxBallRadius else {
-            return nil
+        for i in 0..<sorted.count {
+            if suppressed.contains(i) { continue }
+            kept.append(sorted[i])
+            for j in (i + 1)..<sorted.count {
+                if suppressed.contains(j) || sorted[i].classId != sorted[j].classId { continue }
+                if calculateIoU(sorted[i].boundingBox, sorted[j].boundingBox) > nmsThreshold {
+                    suppressed.insert(j)
+                }
+            }
         }
-        
-        // Calculate confidence based on roundness and pixel density
-        let expectedArea = CGFloat.pi * radius * radius
-        let actualArea = CGFloat(count) * 4 // *4 because we sample every 2nd pixel in both dims
-        let roundness = min(actualArea, expectedArea) / max(actualArea, expectedArea)
-        let density = Float(count) / Float(width * height / (step * step))
-        let confidence = min(1.0, Float(roundness) * 0.7 + min(density * 50, 0.3))
-        
-        // Bounding box (normalized)
-        let bbox = CGRect(
-            x: CGFloat(minX) / CGFloat(width),
-            y: 1.0 - CGFloat(maxY) / CGFloat(height),
-            width: bboxWidth / CGFloat(width),
-            height: bboxHeight / CGFloat(height)
-        )
-        
-        return Detection(
-            center: normalizedCenter,
-            radius: normalizedRadius,
-            confidence: confidence,
-            boundingBox: bbox,
-            timestamp: timestamp
-        )
+        return kept
+    }
+    
+    private func calculateIoU(_ a: CGRect, _ b: CGRect) -> Float {
+        let inter = a.intersection(b)
+        guard !inter.isEmpty else { return 0 }
+        let interArea = inter.width * inter.height
+        let unionArea = a.width * a.height + b.width * b.height - interArea
+        return Float(interArea / unionArea)
     }
 }

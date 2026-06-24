@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var ballDetector = BallDetector()
     @State private var currentBallPosition: CGPoint? = nil
     @State private var currentBallRadius: CGFloat = 0
+    @State private var currentDetections: [BallDetector.Detection] = []
     @State private var showCourtGuide = true
     @State private var showStats = true
     @State private var isRecording = false
@@ -15,6 +16,7 @@ struct ContentView: View {
     @State private var fps: Double = 0
     @State private var lastFpsTime: TimeInterval = 0
     @State private var fpsFrameCount: Int = 0
+    @State private var modelLoaded: Bool = false
     
     var body: some View {
         ZStack {
@@ -27,7 +29,8 @@ struct ContentView: View {
                             tracker: trajectoryTracker,
                             ballPosition: currentBallPosition,
                             ballRadius: currentBallRadius,
-                            showCourtGuide: showCourtGuide
+                            showCourtGuide: showCourtGuide,
+                            detections: currentDetections
                         )
                         .ignoresSafeArea()
                     }
@@ -44,6 +47,12 @@ struct ContentView: View {
                 
                 Spacer()
                 
+                // Detection info (show all detected objects)
+                if !currentDetections.isEmpty {
+                    detectionInfo
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                
                 // Real-time stats
                 if showStats && isRecording {
                     realtimeStats
@@ -58,6 +67,10 @@ struct ContentView: View {
         .onAppear {
             cameraManager.requestPermission()
             setupFrameProcessing()
+            // Check if model loaded
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                modelLoaded = true // BallDetector init loads the model
+            }
         }
         .onDisappear {
             cameraManager.stopSession()
@@ -70,9 +83,15 @@ struct ContentView: View {
         HStack {
             // App title
             VStack(alignment: .leading, spacing: 2) {
-                Text("🎾 RacquetVision")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                Text("Tennis Ball Tracker")
+                HStack(spacing: 4) {
+                    Text("🎾 RacquetVision")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                    // Model indicator
+                    Circle()
+                        .fill(modelLoaded ? Color.green : Color.orange)
+                        .frame(width: 8, height: 8)
+                }
+                Text("YOLOv8 AI Detection")
                     .font(.system(size: 11, weight: .medium))
                     .opacity(0.7)
             }
@@ -83,15 +102,20 @@ struct ContentView: View {
             
             Spacer()
             
-            // FPS indicator
+            // FPS + Frame count
             if isRecording {
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(.red)
-                        .frame(width: 8, height: 8)
-                        .opacity(isRecording ? 1 : 0.3)
-                    Text(String(format: "%.0f fps", fps))
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                VStack(alignment: .trailing, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 8, height: 8)
+                            .opacity(isRecording ? 1 : 0.3)
+                        Text(String(format: "%.0f fps", fps))
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    }
+                    Text("\(frameCount) frames")
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .opacity(0.6)
                 }
                 .foregroundColor(.white)
                 .padding(8)
@@ -104,11 +128,13 @@ struct ContentView: View {
                 Toggle("Court Guide", isOn: $showCourtGuide)
                 Toggle("Stats Panel", isOn: $showStats)
                 
-                Menu("Lighting") {
-                    Button("Auto") { ballDetector.colorRange = .default }
-                    Button("Indoor") { ballDetector.colorRange = .indoor }
-                    Button("Outdoor") { ballDetector.colorRange = .outdoor }
+                Menu("Confidence") {
+                    Button("Low (0.25)") { ballDetector.confidenceThreshold = 0.25 }
+                    Button("Medium (0.35)") { ballDetector.confidenceThreshold = 0.35 }
+                    Button("High (0.50)") { ballDetector.confidenceThreshold = 0.50 }
                 }
+                
+                Toggle("Detect All Classes", isOn: $ballDetector.detectAllClasses)
                 
                 Button("Switch Camera") { cameraManager.switchCamera() }
                 Button("Reset Trajectory") { trajectoryTracker.reset() }
@@ -119,6 +145,28 @@ struct ContentView: View {
                     .padding(10)
                     .background(.ultraThinMaterial)
                     .cornerRadius(10)
+            }
+        }
+    }
+    
+    private var detectionInfo: some View {
+        HStack(spacing: 8) {
+            ForEach(currentDetections, id: \.timestamp) { det in
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(det.classId == 2 ? Color.yellow : det.classId == 0 ? Color.blue : Color.purple)
+                        .frame(width: 8, height: 8)
+                    Text(det.className)
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(String(format: "%.0f%%", det.confidence * 100))
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .opacity(0.7)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.ultraThinMaterial)
+                .cornerRadius(8)
             }
         }
     }
@@ -228,15 +276,12 @@ struct ContentView: View {
             Image(systemName: "camera.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.blue)
-            
             Text("Camera Access Required")
                 .font(.title2.bold())
-            
             Text("RacquetVision needs camera access to detect and track tennis balls in real-time.")
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 40)
-            
             Button("Grant Access") {
                 cameraManager.requestPermission()
             }
@@ -250,15 +295,12 @@ struct ContentView: View {
             Image(systemName: "camera.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.red)
-            
             Text("Camera Access Denied")
                 .font(.title2.bold())
-            
             Text("Please enable camera access in Settings to use RacquetVision.")
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 40)
-            
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
@@ -274,33 +316,41 @@ struct ContentView: View {
     private func setupFrameProcessing() {
         cameraManager.onFrameCaptured = { [weak trajectoryTracker] sampleBuffer in
             guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-            
             let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
             
-            // Detect ball
-            if let detection = self.ballDetector.detect(in: pixelBuffer, timestamp: timestamp) {
-                DispatchQueue.main.async {
-                    self.currentBallPosition = detection.center
-                    self.currentBallRadius = detection.radius
-                    self.frameCount += 1
+            // Run YOLOv8 detection
+            let detections = self.ballDetector.detect(in: pixelBuffer, timestamp: timestamp)
+            
+            // Find the tennis ball detection (highest confidence)
+            let ballDetection = detections.first { $0.classId == 2 } // Tennis Ball
+            
+            DispatchQueue.main.async {
+                self.currentDetections = detections
+                self.frameCount += 1
+                
+                if let ball = ballDetection {
+                    self.currentBallPosition = ball.center
+                    self.currentBallRadius = ball.radius
                     
                     if self.isRecording {
-                        trajectoryTracker?.processDetection(detection)
+                        trajectoryTracker?.processDetection(
+                            TrajectoryDetection(
+                                center: ball.center,
+                                radius: ball.radius,
+                                confidence: ball.confidence,
+                                boundingBox: ball.boundingBox,
+                                timestamp: ball.timestamp
+                            )
+                        )
                     }
-                }
-            } else {
-                DispatchQueue.main.async {
-                    // Ball not found - use Kalman prediction if recording
+                } else {
                     if self.isRecording {
                         trajectoryTracker?.processMiss(timestamp: timestamp)
                     }
-                    // Fade out ball indicator after a short delay
                     self.currentBallPosition = nil
                 }
-            }
-            
-            // FPS calculation
-            DispatchQueue.main.async {
+                
+                // FPS calculation
                 self.fpsFrameCount += 1
                 let now = timestamp
                 if now - self.lastFpsTime >= 1.0 {
@@ -330,8 +380,16 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Stat Badge Component
+// MARK: - Bridge type between BallDetector and TrajectoryTracker
+struct TrajectoryDetection {
+    let center: CGPoint
+    let radius: CGFloat
+    let confidence: Float
+    let boundingBox: CGRect
+    let timestamp: TimeInterval
+}
 
+// MARK: - Stat Badge Component
 struct StatBadge: View {
     let icon: String
     let label: String

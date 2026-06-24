@@ -22,3 +22,9 @@ Package.resolved
 # IDE
 .idea/
 *.code-workspace
+
+# Models (large files, generate with convert_model.sh)
+*.mlpackage
+*.mlmodel
+*.mlmodelc
+*.onnx

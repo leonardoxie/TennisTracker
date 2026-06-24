@@ -102,7 +102,7 @@ class TrajectoryTracker: ObservableObject {
     }
     
     /// Process a new ball detection
-    func processDetection(_ detection: BallDetector.Detection) {
+    func processDetection(_ detection: TrajectoryDetection) {
         let dt: Double
         if lastDetectionTime > 0 {
             dt = detection.timestamp - lastDetectionTime

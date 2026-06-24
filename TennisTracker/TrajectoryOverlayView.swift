@@ -1,14 +1,17 @@
 import SwiftUI
 
-/// Overlay view that draws ball trajectory, hit markers, and court guide
+/// Overlay view that draws ball trajectory, hit markers, detection boxes, and court guide
 struct TrajectoryOverlayView: View {
     @ObservedObject var tracker: TrajectoryTracker
     let ballPosition: CGPoint?    // Current ball position (normalized)
     let ballRadius: CGFloat       // Current ball radius (normalized)
     let showCourtGuide: Bool
+    var detections: [BallDetector.Detection] = []
     
     var body: some View {
         Canvas { context, size in
+            // Draw detection bounding boxes
+            drawDetectionBoxes(in: context, size: size)
             // Draw court guide lines
             if showCourtGuide {
                 drawCourtGuide(in: context, size: size)
@@ -28,6 +31,37 @@ struct TrajectoryOverlayView: View {
     }
     
     // MARK: - Drawing Functions
+    
+    private func drawDetectionBoxes(in context: GraphicsContext, size: CGSize) {
+        for det in detections {
+            let rect = CGRect(
+                x: det.boundingBox.origin.x * size.width,
+                y: (1 - det.boundingBox.origin.y - det.boundingBox.height) * size.height,
+                width: det.boundingBox.width * size.width,
+                height: det.boundingBox.height * size.height
+            )
+            
+            // Color by class
+            let color: Color
+            switch det.classId {
+            case 0: color = .blue.opacity(0.5)     // Player
+            case 1: color = .purple.opacity(0.5)   // Racket
+            case 2: color = .yellow.opacity(0.7)   // Tennis Ball
+            default: color = .white.opacity(0.3)
+            }
+            
+            // Bounding box
+            context.stroke(Path(roundedRect: rect, cornerRadius: 4), with: .color(color), lineWidth: 2)
+            
+            // Label
+            let label = Text("\(det.className) \(Int(det.confidence * 100))%")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.white)
+            let labelBg = Path(roundedRect: CGRect(x: rect.origin.x, y: rect.origin.y - 18, width: 90, height: 16), cornerRadius: 3)
+            context.fill(labelBg, with: .color(color))
+            context.draw(label, at: CGPoint(x: rect.origin.x + 45, y: rect.origin.y - 10))
+        }
+    }
     
     private func drawCourtGuide(in context: GraphicsContext, size: CGSize) {
         let margin: CGFloat = size.width * 0.08
