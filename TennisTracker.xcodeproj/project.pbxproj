@@ -7,18 +7,34 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		18C507E33048E48AB87BC607 /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6D5E57E3DC2A40FE48B29A3 /* SessionHistoryView.swift */; };
+		2F4C9AB8F27A4D957D287DBA /* StatCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BE199FA2498C55039E423ED /* StatCard.swift */; };
+		3322470F0089051C1E57DD82 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38C64C296787036B26106299 /* MainTabView.swift */; };
 		349C40454966F92138360CA6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A780C3539050BB6DBB8197A /* ContentView.swift */; };
 		3EFF29F64E82749968F034D0 /* TennisTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63ED978C9982686B27AECED3 /* TennisTrackerApp.swift */; };
 		431297F454B7B98835F86CBD /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7547D2470485A2E67798E188 /* CameraManager.swift */; };
 		6CF3D9EF0E7EE38BEF727962 /* TrajectoryTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3067EBE8BAEAC99BE435DA0E /* TrajectoryTracker.swift */; };
+		7D584B23E99EE9244BC468C6 /* InsightEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44152F5F9EF0B5C511BBB51A /* InsightEngine.swift */; };
 		800A8F111AF86B93896F6135 /* BallDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49140750208855D1C71C542A /* BallDetector.swift */; };
 		939BE5957B98B4A83BB578B1 /* TrajectoryOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE4564103C6E9EDF0038027 /* TrajectoryOverlayView.swift */; };
 		97BCF9375E0E7C71AFBBC097 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F389932B45F2A353803341 /* CameraPreviewView.swift */; };
+		AF010F26F762E5388C8D467D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4404C53866FAD712705F6368 /* SettingsView.swift */; };
+		B96A284EFF0C4FDD2C4D3BEA /* HeatmapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0F0D36D6E00228D71C262B3 /* HeatmapView.swift */; };
+		BBB424221B1C8E533813C68B /* ChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A0F403AA8FC21CA03CB9C7 /* ChartView.swift */; };
+		C43B3109C4A2C266F9EBADF0 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35D07B91F5ED62B3552EA760 /* SessionStore.swift */; };
+		C66227F5553BDBB5BD23CF99 /* SessionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7521FA9896E365999F74BFA /* SessionData.swift */; };
+		EF55940F70011651C91FC04A /* CourtMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D8B5C6B70576D462FE24FC /* CourtMapper.swift */; };
+		F145E31F1E05FAA89E5FF8C8 /* AnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E960483BEC50663D2CA7E201 /* AnalyticsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0BE199FA2498C55039E423ED /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
 		3067EBE8BAEAC99BE435DA0E /* TrajectoryTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrajectoryTracker.swift; sourceTree = "<group>"; };
+		35D07B91F5ED62B3552EA760 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		38C64C296787036B26106299 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		3BE4564103C6E9EDF0038027 /* TrajectoryOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrajectoryOverlayView.swift; sourceTree = "<group>"; };
+		4404C53866FAD712705F6368 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		44152F5F9EF0B5C511BBB51A /* InsightEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightEngine.swift; sourceTree = "<group>"; };
 		45BE289D6A162FC919BE2461 /* TennisTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TennisTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		49140750208855D1C71C542A /* BallDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallDetector.swift; sourceTree = "<group>"; };
 		4A780C3539050BB6DBB8197A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -26,9 +42,28 @@
 		63ED978C9982686B27AECED3 /* TennisTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TennisTrackerApp.swift; sourceTree = "<group>"; };
 		7547D2470485A2E67798E188 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		A1F389932B45F2A353803341 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
+		B3A0F403AA8FC21CA03CB9C7 /* ChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartView.swift; sourceTree = "<group>"; };
+		C1D8B5C6B70576D462FE24FC /* CourtMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourtMapper.swift; sourceTree = "<group>"; };
+		E0F0D36D6E00228D71C262B3 /* HeatmapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapView.swift; sourceTree = "<group>"; };
+		E7521FA9896E365999F74BFA /* SessionData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionData.swift; sourceTree = "<group>"; };
+		E960483BEC50663D2CA7E201 /* AnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsView.swift; sourceTree = "<group>"; };
+		F6D5E57E3DC2A40FE48B29A3 /* SessionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		26D5A12BC892EF4D9EBAF1F6 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				E960483BEC50663D2CA7E201 /* AnalyticsView.swift */,
+				E0F0D36D6E00228D71C262B3 /* HeatmapView.swift */,
+				38C64C296787036B26106299 /* MainTabView.swift */,
+				F6D5E57E3DC2A40FE48B29A3 /* SessionHistoryView.swift */,
+				4404C53866FAD712705F6368 /* SettingsView.swift */,
+				8894F7600683565593650721 /* Components */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		36F80AB4523FBFF2DFCFCE0C = {
 			isa = PBXGroup;
 			children = (
@@ -37,12 +72,38 @@
 			);
 			sourceTree = "<group>";
 		};
+		446AFC05EBC7FE0C025EC117 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				44152F5F9EF0B5C511BBB51A /* InsightEngine.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		5F9FC4EB936F1DD1ABC7AAF1 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				C1D8B5C6B70576D462FE24FC /* CourtMapper.swift */,
+				E7521FA9896E365999F74BFA /* SessionData.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		7727B586301D3EA2AF80F846 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				45BE289D6A162FC919BE2461 /* TennisTracker.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		8894F7600683565593650721 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				B3A0F403AA8FC21CA03CB9C7 /* ChartView.swift */,
+				0BE199FA2498C55039E423ED /* StatCard.swift */,
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 		AF3055F4E60E6EB888209EE4 /* TennisTracker */ = {
@@ -56,8 +117,20 @@
 				63ED978C9982686B27AECED3 /* TennisTrackerApp.swift */,
 				3BE4564103C6E9EDF0038027 /* TrajectoryOverlayView.swift */,
 				3067EBE8BAEAC99BE435DA0E /* TrajectoryTracker.swift */,
+				5F9FC4EB936F1DD1ABC7AAF1 /* Models */,
+				446AFC05EBC7FE0C025EC117 /* Services */,
+				BD6A78566BC9187916524141 /* Storage */,
+				26D5A12BC892EF4D9EBAF1F6 /* Views */,
 			);
 			path = TennisTracker;
+			sourceTree = "<group>";
+		};
+		BD6A78566BC9187916524141 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				35D07B91F5ED62B3552EA760 /* SessionStore.swift */,
+			);
+			path = Storage;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -118,10 +191,21 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F145E31F1E05FAA89E5FF8C8 /* AnalyticsView.swift in Sources */,
 				800A8F111AF86B93896F6135 /* BallDetector.swift in Sources */,
 				431297F454B7B98835F86CBD /* CameraManager.swift in Sources */,
 				97BCF9375E0E7C71AFBBC097 /* CameraPreviewView.swift in Sources */,
+				BBB424221B1C8E533813C68B /* ChartView.swift in Sources */,
 				349C40454966F92138360CA6 /* ContentView.swift in Sources */,
+				EF55940F70011651C91FC04A /* CourtMapper.swift in Sources */,
+				B96A284EFF0C4FDD2C4D3BEA /* HeatmapView.swift in Sources */,
+				7D584B23E99EE9244BC468C6 /* InsightEngine.swift in Sources */,
+				3322470F0089051C1E57DD82 /* MainTabView.swift in Sources */,
+				C66227F5553BDBB5BD23CF99 /* SessionData.swift in Sources */,
+				18C507E33048E48AB87BC607 /* SessionHistoryView.swift in Sources */,
+				C43B3109C4A2C266F9EBADF0 /* SessionStore.swift in Sources */,
+				AF010F26F762E5388C8D467D /* SettingsView.swift in Sources */,
+				2F4C9AB8F27A4D957D287DBA /* StatCard.swift in Sources */,
 				3EFF29F64E82749968F034D0 /* TennisTrackerApp.swift in Sources */,
 				939BE5957B98B4A83BB578B1 /* TrajectoryOverlayView.swift in Sources */,
 				6CF3D9EF0E7EE38BEF727962 /* TrajectoryTracker.swift in Sources */,

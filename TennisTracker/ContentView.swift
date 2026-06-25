@@ -1,9 +1,11 @@
 import SwiftUI
 import AVFoundation
 
+/// Main training view with camera + detection + trajectory overlay
 struct ContentView: View {
-    @StateObject private var cameraManager = CameraManager()
-    @StateObject private var trajectoryTracker = TrajectoryTracker()
+    @ObservedObject var sessionStore: SessionStore
+    @ObservedObject var cameraManager: CameraManager
+    @ObservedObject var trajectoryTracker: TrajectoryTracker
     
     @State private var ballDetector = BallDetector()
     @State private var currentBallPosition: CGPoint? = nil
@@ -18,6 +20,19 @@ struct ContentView: View {
     @State private var fpsFrameCount: Int = 0
     @State private var modelLoaded: Bool = false
     
+    // Session summary popup
+    @State private var showSessionSummary = false
+    @State private var lastSession: SessionRecord?
+    
+    // For hit type classification
+    @State private var courtMapper = CourtCoordinateSystem()
+    
+    // Landing point tracking
+    @State private var ballLandingPoints: [LandingPoint] = []
+    @State private var playerPositions: [PlayerPosition] = []
+    @State private var previousBallSpeed: Double = 0
+    @State private var speedDropCount: Int = 0
+    
     var body: some View {
         ZStack {
             // Camera preview
@@ -30,7 +45,8 @@ struct ContentView: View {
                             ballPosition: currentBallPosition,
                             ballRadius: currentBallRadius,
                             showCourtGuide: showCourtGuide,
-                            detections: currentDetections
+                            detections: currentDetections,
+                            currentSpeed: trajectoryTracker.currentSpeed
                         )
                         .ignoresSafeArea()
                     }
@@ -47,7 +63,7 @@ struct ContentView: View {
                 
                 Spacer()
                 
-                // Detection info (show all detected objects)
+                // Detection info
                 if !currentDetections.isEmpty {
                     detectionInfo
                         .transition(.move(edge: .top).combined(with: .opacity))
@@ -59,6 +75,12 @@ struct ContentView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
                 
+                // Session summary popup
+                if showSessionSummary, let session = lastSession {
+                    sessionSummaryCard(session)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                
                 // Bottom controls
                 bottomControls
             }
@@ -67,13 +89,14 @@ struct ContentView: View {
         .onAppear {
             cameraManager.requestPermission()
             setupFrameProcessing()
-            // Check if model loaded
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                modelLoaded = true // BallDetector init loads the model
+                modelLoaded = true
             }
         }
         .onDisappear {
-            cameraManager.stopSession()
+            if isRecording {
+                stopRecording()
+            }
         }
     }
     
@@ -82,65 +105,71 @@ struct ContentView: View {
     private var topBar: some View {
         HStack {
             // App title
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
-                    Text("🎾 RacquetVision")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                    // Model indicator
-                    Circle()
-                        .fill(modelLoaded ? Color.green : Color.orange)
-                        .frame(width: 8, height: 8)
+            HStack(spacing: 8) {
+                Image(systemName: "tennisball.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(Color(red: 0.78, green: 0.90, blue: 0.20))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("TennisTracker")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(modelLoaded ? Color(red: 0.78, green: 0.90, blue: 0.20) : .orange)
+                            .frame(width: 6, height: 6)
+                        Text(modelLoaded ? "就绪" : "加载中...")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
                 }
-                Text("YOLOv8 AI Detection")
-                    .font(.system(size: 11, weight: .medium))
-                    .opacity(0.7)
             }
-            .foregroundColor(.white)
-            .padding(10)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(.ultraThinMaterial)
-            .cornerRadius(12)
+            .cornerRadius(14)
             
             Spacer()
             
-            // FPS + Frame count
+            // Recording indicator + FPS
             if isRecording {
-                VStack(alignment: .trailing, spacing: 2) {
+                HStack(spacing: 8) {
                     HStack(spacing: 4) {
                         Circle()
                             .fill(.red)
-                            .frame(width: 8, height: 8)
+                            .frame(width: 7, height: 7)
                             .opacity(isRecording ? 1 : 0.3)
-                        Text(String(format: "%.0f fps", fps))
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        Text("录制中")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.8))
                     }
-                    Text("\(frameCount) frames")
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .opacity(0.6)
+                    Text(String(format: "%.0f", fps))
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                    Text("fps")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(.white.opacity(0.5))
                 }
-                .foregroundColor(.white)
-                .padding(8)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
                 .background(.ultraThinMaterial)
-                .cornerRadius(8)
+                .cornerRadius(10)
             }
             
-            // Settings
+            // Settings menu
             Menu {
-                Toggle("Court Guide", isOn: $showCourtGuide)
-                Toggle("Stats Panel", isOn: $showStats)
-                
-                Menu("Confidence") {
-                    Button("Low (0.25)") { ballDetector.confidenceThreshold = 0.25 }
-                    Button("Medium (0.35)") { ballDetector.confidenceThreshold = 0.35 }
-                    Button("High (0.50)") { ballDetector.confidenceThreshold = 0.50 }
+                Toggle("球场标线", isOn: $showCourtGuide)
+                Toggle("实时统计", isOn: $showStats)
+                Button("切换摄像头") { cameraManager.switchCamera() }
+                Button("重置轨迹") {
+                    withAnimation {
+                        trajectoryTracker.reset()
+                        ballLandingPoints.removeAll()
+                        playerPositions.removeAll()
+                    }
                 }
-                
-                Toggle("Detect All Classes", isOn: $ballDetector.detectAllClasses)
-                
-                Button("Switch Camera") { cameraManager.switchCamera() }
-                Button("Reset Trajectory") { trajectoryTracker.reset() }
             } label: {
                 Image(systemName: "gearshape.fill")
-                    .font(.system(size: 16))
+                    .font(.system(size: 15))
                     .foregroundColor(.white)
                     .padding(10)
                     .background(.ultraThinMaterial)
@@ -150,14 +179,14 @@ struct ContentView: View {
     }
     
     private var detectionInfo: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(currentDetections, id: \.timestamp) { det in
                 HStack(spacing: 4) {
                     Circle()
                         .fill(det.classId == 2 ? Color.yellow : det.classId == 0 ? Color.blue : Color.purple)
-                        .frame(width: 8, height: 8)
+                        .frame(width: 6, height: 6)
                     Text(det.className)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold))
                     Text(String(format: "%.0f%%", det.confidence * 100))
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
                         .opacity(0.7)
@@ -172,64 +201,162 @@ struct ContentView: View {
     }
     
     private var realtimeStats: some View {
-        HStack(spacing: 16) {
-            StatBadge(
+        HStack(spacing: 8) {
+            CompactStatBadge(
                 icon: "speedometer",
-                label: "Speed",
                 value: String(format: "%.0f", trajectoryTracker.currentSpeed),
                 unit: "km/h",
                 color: speedColor(trajectoryTracker.currentSpeed)
             )
             
-            StatBadge(
+            CompactStatBadge(
                 icon: "target",
-                label: "Hits",
                 value: "\(trajectoryTracker.stats.totalHits)",
-                unit: "shots",
+                unit: "次",
                 color: .blue
             )
             
-            StatBadge(
+            CompactStatBadge(
                 icon: "bolt.fill",
-                label: "Max",
                 value: String(format: "%.0f", trajectoryTracker.stats.maxSpeed),
-                unit: "km/h",
+                unit: "最高",
                 color: .orange
             )
             
-            StatBadge(
+            CompactStatBadge(
                 icon: "chart.line.uptrend.xyaxis",
-                label: "Avg",
                 value: String(format: "%.0f", trajectoryTracker.stats.avgSpeed),
-                unit: "km/h",
-                color: .green
+                unit: "平均",
+                color: Color(red: 0.78, green: 0.90, blue: 0.20)
             )
         }
-        .padding(12)
+        .padding(10)
         .background(.ultraThinMaterial)
-        .cornerRadius(16)
+        .cornerRadius(14)
     }
     
+    // MARK: - Session Summary Card
+    
+    private func sessionSummaryCard(_ session: SessionRecord) -> some View {
+        VStack(spacing: 12) {
+            // Header
+            HStack {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(Color(red: 0.78, green: 0.90, blue: 0.20))
+                Text("训练完成")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                Spacer()
+                Button {
+                    withAnimation { showSessionSummary = false }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white.opacity(0.4))
+                }
+            }
+            
+            // Quick stats
+            HStack(spacing: 0) {
+                VStack(spacing: 2) {
+                    Text("\(session.summary.totalHits)")
+                        .font(.system(size: 20, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                    Text("击球")
+                        .font(.system(size: 9))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+                .frame(maxWidth: .infinity)
+                
+                Divider().background(Color.white.opacity(0.1)).frame(height: 28)
+                
+                VStack(spacing: 2) {
+                    Text(String(format: "%.0f", session.summary.avgSpeed))
+                        .font(.system(size: 20, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                    Text("km/h")
+                        .font(.system(size: 9))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+                .frame(maxWidth: .infinity)
+                
+                Divider().background(Color.white.opacity(0.1)).frame(height: 28)
+                
+                VStack(spacing: 2) {
+                    Text(String(format: "%.0f", session.summary.maxSpeed))
+                        .font(.system(size: 20, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                    Text("最高速度")
+                        .font(.system(size: 9))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+                .frame(maxWidth: .infinity)
+            }
+            
+            // Mini heatmap preview button
+            if !session.hitEvents.isEmpty {
+                Button {
+                    // Navigate to analytics - this would need to be handled via tab switching
+                    showSessionSummary = false
+                } label: {
+                    HStack {
+                        Image(systemName: "chart.bar.fill")
+                            .font(.system(size: 12))
+                        Text("查看详细分析")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(red: 0.78, green: 0.90, blue: 0.20), Color(red: 0.65, green: 0.82, blue: 0.15)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(10)
+                }
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.4), radius: 15, x: 0, y: 8)
+    }
+    
+    // MARK: - Bottom Controls
+    
     private var bottomControls: some View {
-        HStack(spacing: 24) {
+        HStack(spacing: 20) {
             // Reset button
             Button {
                 withAnimation {
                     trajectoryTracker.reset()
                     currentBallPosition = nil
                     frameCount = 0
+                    ballLandingPoints.removeAll()
+                    playerPositions.removeAll()
+                    showSessionSummary = false
                 }
             } label: {
-                VStack(spacing: 4) {
+                VStack(spacing: 3) {
                     Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 20))
-                    Text("Reset")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 18))
+                    Text("重置")
+                        .font(.system(size: 9, weight: .medium))
                 }
                 .foregroundColor(.white)
-                .frame(width: 60, height: 60)
+                .frame(width: 56, height: 56)
                 .background(.ultraThinMaterial)
-                .cornerRadius(16)
+                .cornerRadius(14)
             }
             
             // Record button
@@ -241,12 +368,13 @@ struct ContentView: View {
                 ZStack {
                     Circle()
                         .fill(.ultraThinMaterial)
-                        .frame(width: 80, height: 80)
+                        .frame(width: 76, height: 76)
                     
                     Circle()
-                        .fill(isRecording ? .red : .white)
-                        .frame(width: isRecording ? 32 : 60, height: isRecording ? 32 : 60)
-                        .cornerRadius(isRecording ? 4 : 30)
+                        .fill(isRecording ? .red : Color(red: 0.78, green: 0.90, blue: 0.20))
+                        .frame(width: isRecording ? 30 : 58, height: isRecording ? 30 : 58)
+                        .cornerRadius(isRecording ? 4 : 29)
+                        .animation(.spring(response: 0.3), value: isRecording)
                 }
             }
             
@@ -256,37 +384,44 @@ struct ContentView: View {
                     showCourtGuide.toggle()
                 }
             } label: {
-                VStack(spacing: 4) {
+                VStack(spacing: 3) {
                     Image(systemName: showCourtGuide ? "rectangle.and.hand.point.up.left" : "rectangle")
-                        .font(.system(size: 20))
-                    Text("Court")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 18))
+                    Text("球场")
+                        .font(.system(size: 9, weight: .medium))
                 }
                 .foregroundColor(.white)
-                .frame(width: 60, height: 60)
+                .frame(width: 56, height: 56)
                 .background(.ultraThinMaterial)
-                .cornerRadius(16)
+                .cornerRadius(14)
             }
         }
         .padding(.bottom, 8)
     }
     
+    // MARK: - Camera Views
+    
     private var cameraRequestView: some View {
         VStack(spacing: 20) {
             Image(systemName: "camera.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.blue)
-            Text("Camera Access Required")
-                .font(.title2.bold())
-            Text("RacquetVision needs camera access to detect and track tennis balls in real-time.")
+                .foregroundColor(Color(red: 0.78, green: 0.90, blue: 0.20))
+            Text("需要摄像头权限")
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+            Text("TennisTracker需要使用摄像头来实时检测和追踪网球。")
                 .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.6))
                 .padding(.horizontal, 40)
-            Button("Grant Access") {
+            Button("授权使用") {
                 cameraManager.requestPermission()
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundColor(.black)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(Color(red: 0.78, green: 0.90, blue: 0.20))
+            .cornerRadius(12)
         }
     }
     
@@ -295,19 +430,24 @@ struct ContentView: View {
             Image(systemName: "camera.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.red)
-            Text("Camera Access Denied")
-                .font(.title2.bold())
-            Text("Please enable camera access in Settings to use RacquetVision.")
+            Text("摄像头权限已拒绝")
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+            Text("请在设置中开启摄像头权限以使用TennisTracker。")
                 .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.6))
                 .padding(.horizontal, 40)
-            Button("Open Settings") {
+            Button("打开设置") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundColor(.black)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(Color(red: 0.78, green: 0.90, blue: 0.20))
+            .cornerRadius(12)
         }
     }
     
@@ -318,15 +458,20 @@ struct ContentView: View {
             guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
             let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
             
-            // Run YOLOv8 detection
             let detections = self.ballDetector.detect(in: pixelBuffer, timestamp: timestamp)
+            let ballDetection = detections.first { $0.classId == 2 }
             
-            // Find the tennis ball detection (highest confidence)
-            let ballDetection = detections.first { $0.classId == 2 } // Tennis Ball
+            // Player detection
+            let playerDetection = detections.first { $0.classId == 0 }
             
             DispatchQueue.main.async {
                 self.currentDetections = detections
                 self.frameCount += 1
+                
+                // Track player position
+                if let player = playerDetection {
+                    self.playerPositions.append(PlayerPosition(position: player.center, timestamp: timestamp))
+                }
                 
                 if let ball = ballDetection {
                     self.currentBallPosition = ball.center
@@ -342,6 +487,23 @@ struct ContentView: View {
                                 timestamp: ball.timestamp
                             )
                         )
+                        
+                        // Landing point detection: significant speed drop
+                        let currentSpeed = trajectoryTracker?.currentSpeed ?? 0
+                        if self.previousBallSpeed > 30 && currentSpeed < self.previousBallSpeed * 0.4 {
+                            self.speedDropCount += 1
+                            if self.speedDropCount >= 2 {
+                                self.ballLandingPoints.append(LandingPoint(
+                                    position: ball.center,
+                                    timestamp: timestamp,
+                                    speed: currentSpeed
+                                ))
+                                self.speedDropCount = 0
+                            }
+                        } else {
+                            self.speedDropCount = max(0, self.speedDropCount - 1)
+                        }
+                        self.previousBallSpeed = currentSpeed
                     }
                 } else {
                     if self.isRecording {
@@ -367,9 +529,67 @@ struct ContentView: View {
         if isRecording {
             cameraManager.startSession()
             trajectoryTracker.startTracking()
+            showSessionSummary = false
+            ballLandingPoints.removeAll()
+            playerPositions.removeAll()
         } else {
-            trajectoryTracker.stopTracking()
+            stopRecording()
         }
+    }
+    
+    private func stopRecording() {
+        isRecording = false
+        trajectoryTracker.stopTracking()
+        
+        // Build session record
+        let session = buildSessionRecord()
+        sessionStore.save(session)
+        lastSession = session
+        
+        withAnimation(.spring(response: 0.4)) {
+            showSessionSummary = true
+        }
+    }
+    
+    private func buildSessionRecord() -> SessionRecord {
+        // Classify hit types using court mapper
+        let hitRecords: [HitEventRecord] = trajectoryTracker.hitEvents.map { event in
+            let velocity = CGPoint(x: cos(event.direction * .pi / 180), y: sin(event.direction * .pi / 180))
+            let (_, hitType) = courtMapper.classifyHit(normalizedPoint: event.position, velocity: velocity)
+            return HitEventRecord(
+                position: event.position,
+                speed: event.speed,
+                direction: event.direction,
+                timestamp: event.timestamp,
+                hitType: hitType
+            )
+        }
+        
+        // Build summary
+        var summary = SessionSummary()
+        summary.totalHits = hitRecords.count
+        summary.duration = trajectoryTracker.stats.sessionDuration
+        summary.maxSpeed = trajectoryTracker.stats.maxSpeed
+        summary.avgSpeed = trajectoryTracker.stats.avgSpeed
+        
+        for hit in hitRecords {
+            switch hit.hitType {
+            case .forehand: summary.forehandCount += 1
+            case .backhand: summary.backhandCount += 1
+            case .serve: summary.serveCount += 1
+            case .volley: summary.volleyCount += 1
+            case .unknown: summary.unknownCount += 1
+            }
+        }
+        
+        return SessionRecord(
+            date: trajectoryTracker.stats.startTime ?? Date(),
+            duration: summary.duration,
+            hitEvents: hitRecords,
+            ballLandingPoints: ballLandingPoints,
+            playerPositions: playerPositions,
+            summary: summary
+        )
     }
     
     private func speedColor(_ speed: Double) -> Color {
@@ -381,6 +601,7 @@ struct ContentView: View {
 }
 
 // MARK: - Bridge type between BallDetector and TrajectoryTracker
+
 struct TrajectoryDetection {
     let center: CGPoint
     let radius: CGFloat
@@ -389,10 +610,10 @@ struct TrajectoryDetection {
     let timestamp: TimeInterval
 }
 
-// MARK: - Stat Badge Component
-struct StatBadge: View {
+// MARK: - Compact Stat Badge Component
+
+struct CompactStatBadge: View {
     let icon: String
-    let label: String
     let value: String
     let unit: String
     let color: Color
@@ -400,22 +621,23 @@ struct StatBadge: View {
     var body: some View {
         VStack(spacing: 2) {
             Image(systemName: icon)
-                .font(.system(size: 12))
+                .font(.system(size: 11))
                 .foregroundColor(color)
             Text(value)
-                .font(.system(size: 18, weight: .bold, design: .monospaced))
+                .font(.system(size: 17, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
-            HStack(spacing: 2) {
-                Text(label)
-                Text(unit)
-            }
-            .font(.system(size: 8, weight: .medium))
-            .foregroundColor(.white.opacity(0.6))
+            Text(unit)
+                .font(.system(size: 8, weight: .medium))
+                .foregroundColor(.white.opacity(0.5))
         }
-        .frame(minWidth: 55)
+        .frame(minWidth: 50)
     }
 }
 
 #Preview {
-    ContentView()
+    ContentView(
+        sessionStore: SessionStore(),
+        cameraManager: CameraManager(),
+        trajectoryTracker: TrajectoryTracker()
+    )
 }

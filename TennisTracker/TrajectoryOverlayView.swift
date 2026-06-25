@@ -3,21 +3,25 @@ import SwiftUI
 /// Overlay view that draws ball trajectory, hit markers, detection boxes, and court guide
 struct TrajectoryOverlayView: View {
     @ObservedObject var tracker: TrajectoryTracker
-    let ballPosition: CGPoint?    // Current ball position (normalized)
-    let ballRadius: CGFloat       // Current ball radius (normalized)
+    let ballPosition: CGPoint?
+    let ballRadius: CGFloat
     let showCourtGuide: Bool
     var detections: [BallDetector.Detection] = []
+    var currentSpeed: Double = 0
+    
+    @State private var hitPulseScale: CGFloat = 1.0
     
     var body: some View {
         Canvas { context, size in
             // Draw detection bounding boxes
             drawDetectionBoxes(in: context, size: size)
+            
             // Draw court guide lines
             if showCourtGuide {
                 drawCourtGuide(in: context, size: size)
             }
             
-            // Draw trajectory trail
+            // Draw trajectory trail with enhanced visuals
             drawTrajectory(in: context, size: size)
             
             // Draw hit events
@@ -30,7 +34,7 @@ struct TrajectoryOverlayView: View {
         }
     }
     
-    // MARK: - Drawing Functions
+    // MARK: - Detection Boxes
     
     private func drawDetectionBoxes(in context: GraphicsContext, size: CGSize) {
         for det in detections {
@@ -41,27 +45,30 @@ struct TrajectoryOverlayView: View {
                 height: det.boundingBox.height * size.height
             )
             
-            // Color by class
             let color: Color
             switch det.classId {
-            case 0: color = .blue.opacity(0.5)     // Player
-            case 1: color = .purple.opacity(0.5)   // Racket
-            case 2: color = .yellow.opacity(0.7)   // Tennis Ball
+            case 0: color = .blue.opacity(0.5)
+            case 1: color = .purple.opacity(0.5)
+            case 2: color = .yellow.opacity(0.7)
             default: color = .white.opacity(0.3)
             }
             
-            // Bounding box
-            context.stroke(Path(roundedRect: rect, cornerRadius: 4), with: .color(color), lineWidth: 2)
+            // Rounded corner bounding box
+            context.stroke(Path(roundedRect: rect, cornerRadius: 6), with: .color(color), lineWidth: 1.5)
             
-            // Label
+            // Label with rounded background
+            let labelWidth: CGFloat = 100
+            let labelRect = CGRect(x: rect.origin.x, y: rect.origin.y - 20, width: labelWidth, height: 18)
+            context.fill(Path(roundedRect: labelRect, cornerRadius: 4), with: .color(color))
+            
             let label = Text("\(det.className) \(Int(det.confidence * 100))%")
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(.white)
-            let labelBg = Path(roundedRect: CGRect(x: rect.origin.x, y: rect.origin.y - 18, width: 90, height: 16), cornerRadius: 3)
-            context.fill(labelBg, with: .color(color))
-            context.draw(label, at: CGPoint(x: rect.origin.x + 45, y: rect.origin.y - 10))
+            context.draw(label, at: CGPoint(x: labelRect.midX, y: labelRect.midY + 1))
         }
     }
+    
+    // MARK: - Court Guide
     
     private func drawCourtGuide(in context: GraphicsContext, size: CGSize) {
         let margin: CGFloat = size.width * 0.08
@@ -77,7 +84,7 @@ struct TrajectoryOverlayView: View {
         
         var path = Path()
         
-        // Outer boundary (doubles court)
+        // Outer boundary
         path.move(to: CGPoint(x: courtLeft, y: courtTop))
         path.addLine(to: CGPoint(x: courtRight, y: courtTop))
         path.addLine(to: CGPoint(x: courtRight, y: courtBottom))
@@ -104,125 +111,174 @@ struct TrajectoryOverlayView: View {
         path.move(to: CGPoint(x: courtLeft, y: courtMidY))
         path.addLine(to: CGPoint(x: courtRight, y: courtMidY))
         
-        context.stroke(path, with: .color(.green.opacity(0.3)), lineWidth: 1.5)
+        // Draw with slight glow effect
+        context.stroke(path, with: .color(.green.opacity(0.25)), lineWidth: 2)
+        
+        // Net highlight
+        var netPath = Path()
+        netPath.move(to: CGPoint(x: courtLeft, y: courtMidY))
+        netPath.addLine(to: CGPoint(x: courtRight, y: courtMidY))
+        context.stroke(netPath, with: .color(.green.opacity(0.15)), lineWidth: 6)
         
         // Labels
-        let netText = Text("NET").font(.system(size: 10)).foregroundColor(.green.opacity(0.4))
-        context.draw(netText, at: CGPoint(x: size.width / 2, y: courtMidY - 12))
+        let netText = Text("网")
+            .font(.system(size: 11, weight: .medium))
+            .foregroundColor(.green.opacity(0.5))
+        context.draw(netText, at: CGPoint(x: size.width / 2, y: courtMidY - 14))
+        
+        // Corner markers
+        let cornerSize: CGFloat = 12
+        let corners: [CGPoint] = [
+            CGPoint(x: courtLeft, y: courtTop),
+            CGPoint(x: courtRight, y: courtTop),
+            CGPoint(x: courtLeft, y: courtBottom),
+            CGPoint(x: courtRight, y: courtBottom)
+        ]
+        for corner in corners {
+            var hLine = Path()
+            hLine.move(to: CGPoint(x: corner.x - cornerSize, y: corner.y))
+            hLine.addLine(to: CGPoint(x: corner.x + cornerSize, y: corner.y))
+            context.stroke(hLine, with: .color(.green.opacity(0.5)), lineWidth: 2)
+            
+            var vLine = Path()
+            vLine.move(to: CGPoint(x: corner.x, y: corner.y - cornerSize))
+            vLine.addLine(to: CGPoint(x: corner.x, y: corner.y + cornerSize))
+            context.stroke(vLine, with: .color(.green.opacity(0.5)), lineWidth: 2)
+        }
     }
+    
+    // MARK: - Enhanced Trajectory
     
     private func drawTrajectory(in context: GraphicsContext, size: CGSize) {
         let points = tracker.trajectoryPoints
         guard points.count >= 2 else { return }
         
-        // Draw fading trail
+        // Draw wider trail with glow effect
         for i in 1..<points.count {
             let prev = points[i - 1]
             let curr = points[i]
             
             let progress = Double(i) / Double(points.count)
-            let opacity = progress * 0.8 + 0.1
-            let lineWidth = progress * 4 + 1
+            let opacity = progress * 0.85 + 0.1
+            let lineWidth = progress * 5 + 1.5
             
             let p1 = CGPoint(x: prev.position.x * size.width, y: (1 - prev.position.y) * size.height)
             let p2 = CGPoint(x: curr.position.x * size.width, y: (1 - curr.position.y) * size.height)
             
-            // Color based on speed
+            // Color based on speed - enhanced gradient
             let speedRatio = min(curr.speed / 200, 1.0)
-            let color = Color(
-                hue: 0.3 - speedRatio * 0.3, // Green → Red
-                saturation: 0.8,
-                brightness: 0.9,
-                opacity: opacity
-            )
+            let hue = 0.3 - speedRatio * 0.3
+            let color = Color(hue: hue, saturation: 0.85, brightness: 0.95, opacity: opacity)
             
             var path = Path()
             path.move(to: p1)
             path.addLine(to: p2)
             
+            // Glow (wider, more transparent)
+            context.stroke(path, with: .color(color.opacity(0.25)), lineWidth: lineWidth * 2.5)
+            // Main line
             context.stroke(path, with: .color(color), lineWidth: lineWidth)
             
-            // Draw dot at each point
-            if i % 3 == 0 {
-                let dotSize: CGFloat = CGFloat(lineWidth) * 1.5
-                let dotRect = CGRect(
-                    x: p2.x - dotSize / 2,
-                    y: p2.y - dotSize / 2,
-                    width: dotSize,
-                    height: dotSize
-                )
-                context.fill(Path(ellipseIn: dotRect), with: .color(color))
+            // Particle dots
+            if i % 2 == 0 {
+                let dotSize: CGFloat = CGFloat(lineWidth) * 1.8
+                let dotRect = CGRect(x: p2.x - dotSize / 2, y: p2.y - dotSize / 2, width: dotSize, height: dotSize)
+                context.fill(Path(ellipseIn: dotRect), with: .color(color.opacity(0.7)))
             }
         }
     }
     
+    // MARK: - Enhanced Hit Markers
+    
     private func drawHitMarkers(in context: GraphicsContext, size: CGSize) {
-        for hit in tracker.hitEvents.suffix(10) { // Show last 10 hits
+        for hit in tracker.hitEvents.suffix(10) {
             let pos = CGPoint(
                 x: hit.position.x * size.width,
                 y: (1 - hit.position.y) * size.height
             )
             
-            // Crosshair
-            let crossSize: CGFloat = 15
+            let crossSize: CGFloat = 16
+            let isLatest = hit.id == tracker.hitEvents.last?.id
+            let markerOpacity: Double = isLatest ? 1.0 : 0.6
+            
+            // Pulse ring for latest hit
+            if isLatest {
+                let pulseSize: CGFloat = crossSize * 2.5
+                let pulseRect = CGRect(x: pos.x - pulseSize, y: pos.y - pulseSize, width: pulseSize * 2, height: pulseSize * 2)
+                context.stroke(Path(ellipseIn: pulseRect), with: .color(.orange.opacity(0.2)), lineWidth: 2)
+            }
+            
+            // Outer ring
+            let circleRect = CGRect(x: pos.x - crossSize, y: pos.y - crossSize, width: crossSize * 2, height: crossSize * 2)
+            context.stroke(Path(ellipseIn: circleRect), with: .color(.orange.opacity(markerOpacity * 0.8)), lineWidth: 1.5)
+            
+            // Crosshair with rounded caps
             var crosshair = Path()
             crosshair.move(to: CGPoint(x: pos.x - crossSize, y: pos.y))
             crosshair.addLine(to: CGPoint(x: pos.x + crossSize, y: pos.y))
             crosshair.move(to: CGPoint(x: pos.x, y: pos.y - crossSize))
             crosshair.addLine(to: CGPoint(x: pos.x, y: pos.y + crossSize))
+            context.stroke(crosshair, with: .color(.orange.opacity(markerOpacity)), lineWidth: 2)
             
-            context.stroke(crosshair, with: .color(.orange), lineWidth: 2)
+            // Center dot
+            let dotRect = CGRect(x: pos.x - 3, y: pos.y - 3, width: 6, height: 6)
+            context.fill(Path(ellipseIn: dotRect), with: .color(.orange.opacity(markerOpacity)))
             
-            // Circle
-            let circleRect = CGRect(
-                x: pos.x - crossSize,
-                y: pos.y - crossSize,
-                width: crossSize * 2,
-                height: crossSize * 2
-            )
-            context.stroke(Path(ellipseIn: circleRect), with: .color(.orange), lineWidth: 1.5)
-            
-            // Speed label
-            let speedText = Text("\(Int(hit.speed))km/h")
+            // Speed label with background
+            let speedLabel = "\(Int(hit.speed))km/h"
+            let labelText = Text(speedLabel)
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundColor(.orange)
-            context.draw(speedText, at: CGPoint(x: pos.x, y: pos.y - crossSize - 10))
+                .foregroundColor(.orange.opacity(markerOpacity))
+            
+            // Label background
+            let labelWidth: CGFloat = 65
+            let labelBgRect = CGRect(x: pos.x - labelWidth / 2, y: pos.y - crossSize - 22, width: labelWidth, height: 16)
+            context.fill(Path(roundedRect: labelBgRect, cornerRadius: 4), with: .color(.black.opacity(0.6)))
+            context.draw(labelText, at: CGPoint(x: pos.x, y: pos.y - crossSize - 14))
         }
     }
+    
+    // MARK: - Enhanced Ball Drawing
     
     private func drawBall(at position: CGPoint, radius: CGFloat, in context: GraphicsContext, size: CGSize) {
         let center = CGPoint(
             x: position.x * size.width,
             y: (1 - position.y) * size.height
         )
-        let r = max(radius * size.width, 6) // Minimum 6pt radius
+        let r = max(radius * size.width, 7)
         
-        // Glow effect
+        // Outer glow
+        let outerGlowRect = CGRect(x: center.x - r * 3, y: center.y - r * 3, width: r * 6, height: r * 6)
+        context.fill(Path(ellipseIn: outerGlowRect), with: .color(.yellow.opacity(0.08)))
+        
+        // Inner glow
         let glowRect = CGRect(x: center.x - r * 2, y: center.y - r * 2, width: r * 4, height: r * 4)
-        context.fill(
-            Path(ellipseIn: glowRect),
-            with: .color(.yellow.opacity(0.2))
-        )
+        context.fill(Path(ellipseIn: glowRect), with: .color(.yellow.opacity(0.2)))
         
-        // Ball
+        // Ball body
         let ballRect = CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)
-        context.fill(
-            Path(ellipseIn: ballRect),
-            with: .color(.yellow)
-        )
+        context.fill(Path(ellipseIn: ballRect), with: .color(.yellow))
+        
+        // Ball highlight
+        let highlightRect = CGRect(x: center.x - r * 0.5, y: center.y - r * 0.6, width: r * 0.7, height: r * 0.5)
+        context.fill(Path(ellipseIn: highlightRect), with: .color(.white.opacity(0.4)))
         
         // Ball outline
-        context.stroke(
-            Path(ellipseIn: ballRect),
-            with: .color(.white),
-            lineWidth: 1.5
-        )
+        context.stroke(Path(ellipseIn: ballRect), with: .color(.white.opacity(0.8)), lineWidth: 1.5)
         
-        // Ball shadow
-        let shadowRect = CGRect(x: center.x - r * 0.7, y: center.y + r * 0.5, width: r * 1.4, height: r * 0.6)
-        context.fill(
-            Path(ellipseIn: shadowRect),
-            with: .color(.black.opacity(0.15))
-        )
+        // Shadow
+        let shadowRect = CGRect(x: center.x - r * 0.7, y: center.y + r * 0.6, width: r * 1.4, height: r * 0.5)
+        context.fill(Path(ellipseIn: shadowRect), with: .color(.black.opacity(0.15)))
+        
+        // Speed label near ball when moving fast
+        if currentSpeed > 60 {
+            let speedLabel = Text("\(Int(currentSpeed)) km/h")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundColor(.white.opacity(0.9))
+            
+            let labelBgRect = CGRect(x: center.x + r + 6, y: center.y - 8, width: 62, height: 16)
+            context.fill(Path(roundedRect: labelBgRect, cornerRadius: 4), with: .color(.black.opacity(0.5)))
+            context.draw(speedLabel, at: CGPoint(x: center.x + r + 37, y: center.y))
+        }
     }
 }

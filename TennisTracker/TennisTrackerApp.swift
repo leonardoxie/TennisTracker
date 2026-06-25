@@ -4,7 +4,7 @@ import SwiftUI
 struct TennisTrackerApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
                 .preferredColorScheme(.dark)
         }
     }
