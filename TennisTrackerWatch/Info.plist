@@ -27,6 +27,6 @@
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>
-	<string>com.racquetvision.tennistracker</string>
+	<string>com.bingbo.TennisTracker</string>
 </dict>
 </plist>
